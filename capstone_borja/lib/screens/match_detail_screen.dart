@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:capstone_borja/data/firebase_config.dart';
 import 'package:capstone_borja/models/match_item.dart';
 
 class MatchDetailScreen extends StatefulWidget {
@@ -11,33 +14,83 @@ class MatchDetailScreen extends StatefulWidget {
 }
 
 class _MatchDetailScreenState extends State<MatchDetailScreen> {
-  late final TextEditingController _scoreAController;
-  late final TextEditingController _scoreBController;
+  late int _scoreA;
+  late int _scoreB;
   late String _selectedStatus;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _scoreAController = TextEditingController(text: widget.match.scoreA.toString());
-    _scoreBController = TextEditingController(text: widget.match.scoreB.toString());
+    _scoreA = widget.match.scoreA;
+    _scoreB = widget.match.scoreB;
     _selectedStatus = widget.match.status;
   }
 
-  @override
-  void dispose() {
-    _scoreAController.dispose();
-    _scoreBController.dispose();
-    super.dispose();
-  }
+  void _save() async {
+    setState(() {
+      _isSaving = true;
+    });
 
-  void _save() {
-    final scoreA = int.tryParse(_scoreAController.text) ?? widget.match.scoreA;
-    final scoreB = int.tryParse(_scoreBController.text) ?? widget.match.scoreB;
+    final url = Uri.https(firebaseDomain, 'matches/${widget.match.id}.json');
+
+    try {
+      await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'scoreA': _scoreA,
+          'scoreB': _scoreB,
+          'status': _selectedStatus,
+        }),
+      );
+    } catch (_) {}
+
+    if (!mounted) return;
 
     Navigator.of(context).pop({
-      'scoreA': scoreA,
-      'scoreB': scoreB,
+      'action': 'update',
+      'scoreA': _scoreA,
+      'scoreB': _scoreB,
       'status': _selectedStatus,
+    });
+  }
+
+  void _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Match'),
+        content: const Text('Are you sure you want to delete this match?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final url = Uri.https(firebaseDomain, 'matches/${widget.match.id}.json');
+
+    try {
+      await http.delete(url);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    Navigator.of(context).pop({
+      'action': 'delete',
     });
   }
 
@@ -45,34 +98,96 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Match Details & Edit'),
+        title: const Text('Admin Score Control'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _isSaving ? null : _delete,
+          ),
+        ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Text(
-              '${widget.match.teamA.name} vs ${widget.match.teamB.name}',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(widget.match.time, style: const TextStyle(color: Colors.grey)),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _scoreAController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: '${widget.match.teamA.name} Score',
-                border: const OutlineInputBorder(),
-              ),
+              widget.match.time,
+              style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _scoreBController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: '${widget.match.teamB.name} Score',
-                border: const OutlineInputBorder(),
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.match.teamA.name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '$_scoreA',
+                      style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => setState(() => _scoreA += 1),
+                          child: const Text('+1'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () => setState(() => _scoreA += 2),
+                          child: const Text('+2'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () => setState(() => _scoreA += 3),
+                          child: const Text('+3'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.match.teamB.name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '$_scoreB',
+                      style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => setState(() => _scoreB += 1),
+                          child: const Text('+1'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () => setState(() => _scoreB += 2),
+                          child: const Text('+2'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () => setState(() => _scoreB += 3),
+                          child: const Text('+3'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -91,13 +206,19 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                 });
               },
             ),
-            const Spacer(),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _save,
-                child: const Text('Save & Update Score'),
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save Changes'),
               ),
             ),
           ],

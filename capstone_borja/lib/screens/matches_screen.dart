@@ -12,12 +12,14 @@ class MatchesScreen extends StatefulWidget {
     required this.teams,
     required this.onUpdateMatch,
     required this.onAddMatch,
+    required this.onDeleteMatch,
   });
 
   final List<MatchItem> matches;
   final List<Team> teams;
   final Function(MatchItem match, int scoreA, int scoreB, String status) onUpdateMatch;
   final Function(MatchItem newMatch) onAddMatch;
+  final Function(MatchItem match) onDeleteMatch;
 
   @override
   State<MatchesScreen> createState() => _MatchesScreenState();
@@ -33,7 +35,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
       ),
     );
 
-    if (result != null) {
+    if (result == null) return;
+
+    if (result['action'] == 'delete') {
+      widget.onDeleteMatch(match);
+    } else if (result['action'] == 'update') {
       widget.onUpdateMatch(
         match,
         result['scoreA'] as int,
@@ -99,9 +105,21 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     itemCount: filteredMatches.length,
                     itemBuilder: (ctx, index) {
                       final match = filteredMatches[index];
-                      return MatchCard(
-                        match: match,
-                        onTap: () => _openDetail(context, match),
+                      return Dismissible(
+                        key: ValueKey(match.id),
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (_) {
+                          widget.onDeleteMatch(match);
+                        },
+                        child: MatchCard(
+                          match: match,
+                          onTap: () => _openDetail(context, match),
+                        ),
                       );
                     },
                   ),

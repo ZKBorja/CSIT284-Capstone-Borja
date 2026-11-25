@@ -88,6 +88,22 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _deleteMatch(MatchItem match) async {
+    final index = _matches.indexOf(match);
+    setState(() {
+      _matches.remove(match);
+    });
+
+    final url = Uri.https(firebaseDomain, 'matches/${match.id}.json');
+    try {
+      await http.delete(url);
+    } catch (_) {
+      setState(() {
+        _matches.insert(index, match);
+      });
+    }
+  }
+
   void _updateScore(MatchItem match, int newScoreA, int newScoreB, String newStatus) {
     setState(() {
       match.scoreA = newScoreA;
@@ -123,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
         teams: _teams,
         onUpdateMatch: _updateScore,
         onAddMatch: _addMatch,
+        onDeleteMatch: _deleteMatch,
       ),
       StandingsScreen(
         teams: _teams,
