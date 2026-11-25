@@ -1,0 +1,1 @@
+const String firebaseDomain = 'YOUR_FIREBASE_URL_HERE';

@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:capstone_borja/data/dummy_data.dart';
+import 'package:capstone_borja/data/firebase_config.dart';
 import 'package:capstone_borja/models/match_item.dart';
 import 'package:capstone_borja/models/team.dart';
 import 'package:capstone_borja/screens/matches_screen.dart';
@@ -35,9 +38,49 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTabIndex = 0;
+  bool _isLoading = true;
 
   final List<Team> _teams = dummyTeams;
-  final List<MatchItem> _matches = dummyMatches;
+  List<MatchItem> _matches = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMatches();
+  }
+
+  void _loadMatches() async {
+    final url = Uri.https(firebaseDomain, 'matches.json');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode >= 400 || response.body == 'null') {
+        setState(() {
+          _matches = dummyMatches;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final Map<String, dynamic> data = json.decode(response.body);
+      final List<MatchItem> loadedMatches = [];
+
+      for (final entry in data.entries) {
+        loadedMatches.add(MatchItem.fromJson(entry.key, entry.value));
+      }
+
+      setState(() {
+        _matches = loadedMatches;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _matches = dummyMatches;
+        _isLoading = false;
+      });
+    }
+  }
 
   void _updateScore(MatchItem match, int newScoreA, int newScoreB, String newStatus) {
     setState(() {
@@ -60,6 +103,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     final pages = [
       MatchesScreen(
         matches: _matches,
