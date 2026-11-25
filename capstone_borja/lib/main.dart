@@ -74,12 +74,18 @@ class _HomeScreenState extends State<HomeScreen> {
         _matches = loadedMatches;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _matches = dummyMatches;
         _isLoading = false;
       });
     }
+  }
+
+  void _addMatch(MatchItem newMatch) {
+    setState(() {
+      _matches.add(newMatch);
+    });
   }
 
   void _updateScore(MatchItem match, int newScoreA, int newScoreB, String newStatus) {
@@ -114,7 +120,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final pages = [
       MatchesScreen(
         matches: _matches,
+        teams: _teams,
         onUpdateMatch: _updateScore,
+        onAddMatch: _addMatch,
       ),
       StandingsScreen(
         teams: _teams,
